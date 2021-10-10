@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}
+    Room
+{% endblock %}
+
+{% block content %}
+    {{ game_id|json_script:"gameID" }}
+    {{ request.user.id|json_script:"userID" }}
+    <section id="game">
+        <div class="chat">
+            <div class="chat__messages" id="chatMessages"></div>
+            <textarea class="chat__input" id="messageInput" cols="30" rows="10"></textarea>
+            <input class="chat__submit" id="messageSubmit" type="button" value="Send">
+        </div>
+        <div class="game_field">
+            <div class="game_field__main">
+                <table class="game_field__table" id="gameFieldTable">
+                    <tbody>
+                        <tr>
+                            <td id="1A"></td>
+                            <td id="1B"></td>
+                            <td id="1C"></td>
+                            <td id="1D"></td>
+                            <td id="1E"></td>
+                            <td id="1F"></td>
+                            <td id="1G"></td>
+                            <td id="1H"></td>
+                            <td id="1K"></td>
+                            <td id="1L"></td>
+                        </tr>
+                        <tr>
+                            <td id="2A"></td>
+                            <td id="2B"></td>
+                            <td id="2C"></td>
+                            <td id="2D"></td>
+                            <td id="2E"></td>
+                            <td id="2F"></td>
+                            <td id="2G"></td>
+                            <td id="2H"></td>
+                            <td id="2K"></td>
+                            <td id="2L"></td>
+                        </tr>
+                        <tr>
+                            <td id="3A"></td>
+                            <td id="3B"></td>
+                            <td id="3C"></td>
+                            <td id="3D"></td>
+                            <td id="3E"></td>
+                            <td id="3F"></td>
+                            <td id="3G"></td>
+                            <td id="3H"></td>
+                            <td id="3K"></td>
+                            <td id="3L"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+{% endblock %}

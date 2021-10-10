@@ -1,0 +1,26 @@
+{% block title %}
+    Game
+{% endblock %}
+
+{% block content %}
+    Enter Game ID<br>
+    <form method="POST" id="gameForm">
+        {% csrf_token %}
+        {{ form }}
+        <input type="submit" value="Найти">
+    </form>
+
+    <script>
+        document.querySelector('#id_game_id').focus();
+        document.querySelector('#id_game_id').onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+                document.querySelector('#gameForm').submit();
+            }
+        };
+
+        document.querySelector('#gameForm').onsubmit = function(e) {
+            let game_id = document.querySelector('#id_game_id').value;
+            window.location.pathname = '/chat/' + game_id + '/';
+        };
+    </script>
+{% endblock %}

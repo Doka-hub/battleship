@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}
+
+{% endblock %}
+
+{% block content %}
+    <form method="POST">
+        {% csrf_token %}
+        {{ form }}
+        <input type="submit" value="Войти">
+    </form>
+    <form method="POST" action="{% url 'login_as_guest' %}">
+        {% csrf_token %}
+        <input type="submit" value="Войти как гость">
+    </form>
+{% endblock %}
