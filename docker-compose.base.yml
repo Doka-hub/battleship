@@ -1,0 +1,40 @@
+
+services:
+
+  postgresdb:
+    build:
+      context: ./Docker/postgres/
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE=doka_project
+      - USER=doka
+      - POSTGRES_PASSWORD=doka_admin
+    container_name: postgresdb
+
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+#  nginx:
+#    build:
+#      context: ./Docker/nginx
+#      dockerfile: Dockerfile
+#    container_name: nginx
+#    ports:
+#    - "80:80"
+#    - "443:443"
+#    depends_on:
+#      - battlership
+
+  sea_battle:
+    build: .
+    volumes:
+      - .:/app
+    container_name: sea_battle
+    depends_on:
+      - postgresdb
+      - redis
+    ports:
+      - "8000:8000"

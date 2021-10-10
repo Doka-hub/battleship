@@ -83,8 +83,10 @@ class Game(models.Model):
                                 related_name='player2',
                                 null=True, verbose_name='Игрок 2')
 
-    winner = models.IntegerField(choices=WINNER_CHOICE, blank=True, null=True,
-                                 verbose_name='Победитель')
+    winner = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,
+                               blank=True, null=True,
+                               choices=[player1, player2],
+                               verbose_name='Победитель')
 
     is_end = models.BooleanField(default=False, verbose_name='Игра закончена')
 

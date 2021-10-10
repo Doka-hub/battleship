@@ -94,13 +94,16 @@ td, th {
 
 #game {
     display: flex;
+
+    margin-top: 20px;
 }
 
 .chat {
     display: flex;
     flex-direction: column;
 
-    width: 50%;
+    width: 40%;
+    padding-right: 20px;
 }
 
 .chat__messages {
@@ -151,7 +154,23 @@ td, th {
 }
 
 .game_field {
-    width: 50%;
+    width: 60%;
+}
+
+.game_field__status {
+    display: flex;
+    justify-content: center;
+
+    margin-bottom: 100px;
+}
+
+.game_field__main table {
+    margin-bottom: 30px;
+    margin-right: 20px;
+}
+
+.game_field__tables {
+    display: flex;
 }
 
 .game_field__table td {
@@ -159,4 +178,15 @@ td, th {
     height: 30px;
 
     cursor: pointer;
+}
+
+td.boat:before {
+    content: 'º';
+}
+td.miss:before {
+    content: '•';
+}
+
+td.hit:before {
+    content: 'x';
 }

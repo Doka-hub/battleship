@@ -13,7 +13,7 @@ SECRET_KEY = 'django-insecure-0j1tpf(7i++_jb0+e(v6$zh_$8ky2h2p7vc+mx6-f_*%q(f26a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -66,12 +66,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'sea_battle.wsgi.application'
 ASGI_APPLICATION = 'sea_battle.asgi.application'
 
+REDIS_URL = '127.0.0.1'
+REDIS_PORT = 6379
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [
-                ('127.0.0.1', 6379)
+                (REDIS_URL, REDIS_PORT)
             ]
         }
     }

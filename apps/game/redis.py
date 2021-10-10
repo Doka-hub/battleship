@@ -1,8 +1,7 @@
 from typing import Optional, Union, List
 
-from asgiref.sync import sync_to_async
-
 from django.utils.timezone import datetime
+from django.conf import settings
 
 import json
 
@@ -13,7 +12,7 @@ from .models import Game as GameModel
 
 
 class RedisClient:
-    r_client = redis.Redis().client()
+    r_client = redis.Redis(settings.REDIS_URL, settings.REDIS_PORT).client()
 
 
 class Message(RedisClient):
@@ -56,7 +55,8 @@ class Message(RedisClient):
         data: Optional[bytes] = cls.r_client.hget('messages', chat_id)
         if isinstance(data, bytes):
             data: List = json.loads(data)
-            data = sorted(data, key=lambda x: x['date'])
+            print(data)
+            data = sorted(data, key=lambda x: x['message_id'])
         return data
 
 
@@ -78,20 +78,36 @@ class Game(RedisClient):
 
     def __init__(self, game_id: str):
         self.game_id = game_id
-        self.game = GameModel.objects.get(game_id=game_id)
+        game_data = self.__get_game_data()
 
-        self.player1_id = self.game.player1.id
-        self.player2_id = self.game.player2.id
+        if game_data:
+            self.turn = game_data['turn']
+            self.winner = game_data['winner']
+            self.is_end = game_data['is_end']
 
-        self.turn = self.player1_id
-        self.winner = self.game.winner
-        self.is_end = self.game.is_end
+            self.player1_id = game_data['player1_id']
+            self.player2_id = game_data['player2_id']
 
-        self.player1_fields = self.FIELDS
-        self.player1_boats = self.BOATS
+            self.player1_fields = game_data[str(self.player1_id)]['fields']
+            self.player1_boats = game_data[str(self.player1_id)]['boats']
 
-        self.player2_fields = self.FIELDS
-        self.player2_boats = self.BOATS
+            self.player2_fields = game_data[str(self.player2_id)]['fields']
+            self.player2_boats = game_data[str(self.player2_id)]['boats']
+        else:
+            self.game = GameModel.objects.get(game_id=game_id)
+
+            self.player1_id = str(self.game.player1.id)
+            self.player2_id = str(self.game.player2.id)
+
+            self.turn = str(self.player1_id)
+            self.winner = str(self.game.winner)
+            self.is_end = self.game.is_end
+
+            self.player1_fields = self.FIELDS
+            self.player1_boats = self.BOATS
+
+            self.player2_fields = self.FIELDS
+            self.player2_boats = self.BOATS
 
     def __boats_load(self):
         # тут можно написать логику рандомного расположения кораблей
@@ -100,9 +116,9 @@ class Game(RedisClient):
         # player 1
         self.player1_fields['1A']['boat'] = 1
         self.player1_fields['1C']['boat'] = 2
-        self.player1_fields['1D']['boat'] = 3
-        self.player1_fields['1F']['boat'] = 4
-        self.player1_fields['1H']['boat'] = 5
+        self.player1_fields['1E']['boat'] = 3
+        self.player1_fields['1G']['boat'] = 4
+        self.player1_fields['1K']['boat'] = 5
 
         self.player1_fields['3A']['boat'] = 6
         self.player1_fields['3B']['boat'] = 6
@@ -115,9 +131,9 @@ class Game(RedisClient):
         # player 2
         self.player2_fields['1A']['boat'] = 1
         self.player2_fields['1C']['boat'] = 2
-        self.player2_fields['1D']['boat'] = 3
-        self.player2_fields['1F']['boat'] = 4
-        self.player2_fields['1H']['boat'] = 5
+        self.player2_fields['1E']['boat'] = 3
+        self.player2_fields['1G']['boat'] = 4
+        self.player2_fields['1K']['boat'] = 5
 
         self.player2_fields['3A']['boat'] = 6
         self.player2_fields['3B']['boat'] = 6
@@ -127,8 +143,8 @@ class Game(RedisClient):
         self.player2_fields['3F']['boat'] = 7
         self.player2_fields['3G']['boat'] = 7
 
-    def __is_end(self, attacker: str):
-        fields, boats = self.get_fields_and_boats(attacker)
+    def __is_end(self, attacker_id: str):
+        fields, boats = self.get_fields_and_boats_by_id(attacker_id)
         end = True
 
         # если есть хоть один живой корабль, то игра не закончена
@@ -137,43 +153,69 @@ class Game(RedisClient):
                 end = False
         return end
 
-    def is_start(self):
-        return self.get_game_data()
-
-    def get_game_data(self):
+    def __get_game_data(self):
         data = self.r_client.hget('games', self.game_id) or '{}'
         data = json.loads(data)
         return data
 
-    def set_game_data(self, data):
+    def __set_game_data(self, data):
         if isinstance(data, dict):
             data = json.dumps(data)
         self.r_client.hset('games', self.game_id, data)
 
-    def update_game_data(self, data_):
-        data = self.get_game_data()
+    def __update_game_data(self, data_):
+        data = self.__get_game_data()
         data.update(**data_)
-        self.set_game_data(data)
+        self.__set_game_data(data)
 
-    def get_attacker_by_id(self, attacker_id: int):
-        return 'player1' if attacker_id == self.player1_id else 'player2'
+    def is_start(self):
+        return bool(self.__get_game_data())
 
-    def get_fields_and_boats(self, attacker: str):
-        if attacker == 'player1':
+    def __get_player_fields_by_id(self, player_id: str):
+        player_fields = self.player1_fields \
+            if str(player_id) == str(self.player1_id) else self.player2_fields
+        return player_fields
+
+    def get_player_attacked_fields(self, player_id: str):
+        player_fields = self.__get_player_fields_by_id(player_id)
+
+        player_attacked_fields = {
+            field: 'hit' if player_fields[field]['boat'] else 'miss'
+            for field in player_fields
+            if player_fields[field]['attacked']
+        }
+        return player_attacked_fields
+
+    def get_player_boat_places(self, player_id: str):
+        player_fields = self.__get_player_fields_by_id(player_id)
+
+        player_boat_places = [
+            field for field in player_fields if player_fields[field]['boat']
+        ]
+        return player_boat_places
+
+    def get_fields_and_boats_by_id(self, attacker_id: str):
+        if attacker_id == self.player1_id:
             fields = self.player2_fields
             boats = self.player2_boats
-        elif attacker == 'player2':
+        elif attacker_id == self.player2_id:
             fields = self.player1_fields
             boats = self.player1_boats
         return [fields, boats]
 
-    def get_another_turn(self, attacker: str):
-        return self.player1_id if attacker == 'player2' else self.player2_id
+    def get_another_player(self, attacker_id: str):
+        return (
+            self.player1_id if str(attacker_id) == self.player2_id else
+            self.player2_id
+        )
 
     def start(self):
         self.__boats_load()
 
-        self.update_game_data({
+        self.__update_game_data({
+            'player1_id': self.player1_id,
+            'player2_id': self.player2_id,
+
             str(self.player1_id): {
                 'boats': self.player1_boats,
                 'fields': self.player1_fields
@@ -188,34 +230,49 @@ class Game(RedisClient):
             'is_end': self.is_end
         })
 
-    def end(self, winner: str):
-        self.update_game_data(
+    def end(self, winner_id: str):
+        self.winner = winner_id
+        self.is_end = True
+
+        self.__update_game_data(
             {
-                'winner': winner,
-                'is_end': True
+                'winner': self.winner,
+                'is_end': self.is_end
             }
         )
 
-    def attack(self, attacker_id: int, attacked_field: str):
-        attacker = self.get_attacker_by_id(attacker_id)
-        fields, boats = self.get_fields_and_boats(attacker)
+    def attack(self, attacker_id: str, attacked_field: str):
+        if isinstance(attacker_id, int):
+            attacker_id = str(attacker_id)
+
+        response = {
+            'field': attacked_field,
+            'hit': False
+        }
+
+        fields, boats = self.get_fields_and_boats_by_id(attacker_id)
 
         field = fields.get(attacked_field)
         boat = field['boat']
 
+        if field['attacked']:  # если уже атаковано
+            response['attacked'] = True
+            return response
+
+        field['attacked'] = True
+
         if boat:
-            self.turn = attacker_id
-            if field['attacked']:  # если уже атаковано
-                return
-            field['attacked'] = True
+            response['hit'] = True
+
+            boat = str(boat)
             boats[boat]['blocks'] -= 1
 
             if boats[boat]['blocks'] == 0:
                 boats[boat]['defeat'] = True
         else:
-            self.turn = self.get_another_turn(attacker)
+            self.turn = self.get_another_player(attacker_id)
 
-        self.update_game_data(
+        self.__update_game_data(
             {
                 str(self.player1_id): {
                     'boats': self.player1_boats,
@@ -230,8 +287,9 @@ class Game(RedisClient):
             }
         )
 
-        is_end = self.__is_end(attacker)
+        is_end = self.__is_end(attacker_id)
         if is_end:
-            self.end(attacker)
-        return self.get_game_data()
+            self.end(attacker_id)
+        response['is_end'] = self.is_end
+        return response
 

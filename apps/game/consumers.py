@@ -17,9 +17,6 @@ def get_game_by_id(game_id: str) -> Game:
 
 async_get_game_by_id = sync_to_async(get_game_by_id, thread_sensitive=True)
 
-# TODO: оповещать игроков об их ходе
-# TODO: сделать верстку игры
-
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -35,7 +32,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'chat_history',
-                'user_id': self.user.id,
+                'user_id': str(self.user.id),
                 'data': messages_data
             }
         )
@@ -45,12 +42,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not game.is_start():
             game.start()
 
+        enemy_user_id = game.get_another_player(self.user.id)
+
+        boat_places = game.get_player_boat_places(self.user.id)
+        my_attacked_fields = game.get_player_attacked_fields(self.user.id)
+        enemy_attacked_fields = game.get_player_attacked_fields(enemy_user_id)
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'game_start',
-                'user_id': self.user.id,
-                'data': json.dumps(game.get_game_data())
+                'user_id': str(self.user.id),
+
+                'data': {
+                    'boat_places': boat_places,
+                    'my_attacked_fields': my_attacked_fields,
+                    'enemy_attacked_fields': enemy_attacked_fields,
+                    'turn': game.turn
+                }
             }
         )
 
@@ -67,6 +76,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if type_ == 'message':
             message = text_data_json['message']
             date = datetime.now().strftime('%d.%m.%Y %X')
+            user_id = str(self.user.id)
+            username = self.user.username
 
             message = Message(self.room_group_name, self.user.id,
                               self.user.username, message, date)
@@ -76,27 +87,40 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 {
                     'type': 'chat_message',
-                    'user_id': self.user.id,
+                    'user_id': user_id,
                     'message': message.content,
+                    'username': username,
                     'date': date,
                 }
             )
         elif type_ == 'gameAttack':
             data = text_data_json['data']
             field_id = data['fieldID']
-            user_id = data['userID']
+            user_id = str(data['userID'])
 
             game = await async_get_game_by_id(self.game_id)
-            game_data = game.get_game_data()
-            if game_data['turn'] == user_id:
-                data = game.attack(user_id, field_id)
+            enemy_user_id = str(game.get_another_player(user_id))
+
+            # если не ход противника
+            if str(game.turn) == user_id:
+                response = game.attack(user_id, field_id)
 
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         'type': 'game_attack',
-                        'user_id': self.user.id,
-                        'data': data
+                        'user_id': user_id,
+                        'data': response
+                    }
+                )
+
+                response['from_enemy'] = True
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'game_attack',
+                        'user_id': enemy_user_id,
+                        'data': response
                     }
                 )
             else:
@@ -104,13 +128,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     self.room_group_name,
                     {
                         'type': 'game_error',
-                        'user_id': self.user.id,
+                        'user_id': user_id,
                         'error_text': 'Не ваш ход!'
                     }
                 )
 
     async def chat_message(self, event):
         message = event['message']
+        username = event['username']
         date = event['date']
         user_id = event['user_id']
 
@@ -121,7 +146,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'content': message,
 
             'user_id': user_id,
-            'username': self.user.username,
+            'username': username,
             'date': date
         }))
 
@@ -152,6 +177,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         ))
 
+    async def game_end(self, event):
+        data = event['data']
+        user_id = event['user_id']
+
+        await self.send(json.dumps(
+            {
+                'type': 'game_end',
+                'status': 'OK',
+                'user_id': user_id,
+
+                'data': data
+            }
+        ))
+
     async def game_attack(self, event):
         data = event['data']
         user_id = event['user_id']
@@ -163,7 +202,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'status': 'OK',
 
                     'user_id': user_id,
+                    'data': data
+                }
+            )
+        )
 
+    async def game_enemy_attack(self, event):
+        data = event['data']
+        user_id = event['user_id']
+
+        await self.send(
+            json.dumps(
+                {
+                    'type': 'game',
+                    'status': 'OK',
+
+                    'user_id': user_id,
                     'data': data
                 }
             )
