@@ -66,7 +66,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'sea_battle.wsgi.application'
 ASGI_APPLICATION = 'sea_battle.asgi.application'
 
-REDIS_URL = '127.0.0.1'
+REDIS_URL = 'redis'
 REDIS_PORT = 6379
 
 CHANNEL_LAYERS = {
