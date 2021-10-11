@@ -92,6 +92,10 @@ class Game(models.Model):
     def __str__(self):
         return self.game_name
 
+    @property
+    def players(self):
+        return [self.player1, self.player2]
+
 
 @receiver(pre_save, sender=CustomUser)
 def set_guest_username(sender, instance: CustomUser, **kwargs):

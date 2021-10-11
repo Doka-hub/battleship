@@ -85,9 +85,13 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': 'doka_project',
+            'USER': 'doka',
+            'PASSWORD': 'doka_admin',
+            'HOST': 'postgresdb',
+            'PORT': '',
+        }
 }
 
 LOGIN_URL = '/login/'

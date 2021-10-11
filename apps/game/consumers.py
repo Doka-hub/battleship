@@ -18,7 +18,7 @@ def get_game_by_id(game_id: str) -> Game:
 async_get_game_by_id = sync_to_async(get_game_by_id, thread_sensitive=True)
 
 
-class ChatConsumer(AsyncWebsocketConsumer):
+class Consumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'chat_{self.game_id}'

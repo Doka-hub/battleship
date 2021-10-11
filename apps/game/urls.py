@@ -13,7 +13,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
 
     path('game/', EnterGameIDFormView.as_view(), name='enter_game_id'),
-    path('game/<str:game_id>/', GameDetailView.as_view(), name='game'),
+    path('game/<str:game_id>/', GameDetailView.as_view(), name='game')
 ]
 
 
