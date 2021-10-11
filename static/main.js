@@ -9,8 +9,14 @@ $(document).ready(() => {
             messages = $('#chatMessages'),
             messageInput = $('#messageInput'),
             messageSubmit = $('#messageSubmit'),
-            webSocketSend = async (webSocket, data) => {
-                webSocket.send(JSON.stringify(data));
+            webSocketSend = (data, tries = 1) => {
+                if (tries > 5) return 'ERROR';
+
+                if (!webSocket) {
+                    setTimeout(webSocketSend, 3000, data, tries + 1)
+                } else {
+                    webSocket.send(JSON.stringify(data));
+                }
             },
             messageAppend = (username, content, date) => {
                 messages.append(`
@@ -39,8 +45,6 @@ $(document).ready(() => {
 
             webSocket.onmessage = function (e) {
                 let response = JSON.parse(e.data);
-                console.log(response);
-                console.log(userID);
 
                 if (response.type === 'message') {
                     messageAppend(response.username, response.content, response.date)
@@ -121,10 +125,10 @@ $(document).ready(() => {
 
         startWebsocket();
 
-        messageSubmit.click(async (e) => {
+        messageSubmit.click((e) => {
             let message = messageInput.val();
 
-            await webSocketSend(webSocket, {type: 'message', message});
+            webSocketSend({type: 'message', message});
 
             messageInput.val('')
         });
@@ -135,12 +139,12 @@ $(document).ready(() => {
         // Game
 
         table.find('td').click(
-            async (e) => {
+            (e) => {
                 let field = $(e.target);
                 if (field.hasClass('attacked')) {
                     alert('nonono')
                 } else {
-                    await webSocketSend(webSocket, {
+                    webSocketSend({
                             type: 'gameAttack',
                             data: {
                                 fieldID: field.attr('id'),
